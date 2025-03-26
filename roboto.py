@@ -10,7 +10,8 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3 import PPO
 
-import multiprocessing as mp
+from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.monitor import Monitor
 
 
 class MultiChestKukaEnv(gym.Env):
@@ -55,17 +56,17 @@ class MultiChestKukaEnv(gym.Env):
         self.num_joints = p.getNumJoints(self.kuka_id)
         self.end_effector_index = 6
         
-        # Action: move end-effector in x,y,z
+        
         self.action_space = spaces.Box(low=-0.3, high=0.3, shape=(3,), dtype=np.float32)
 
-        # Observation: (ee_x, ee_y, ee_z, chest_x, chest_y, chest_z, cmd_id)
+        
         high = np.array([3]*7, dtype=np.float32)
         self.observation_space = spaces.Box(-high, high, dtype=np.float32)
 
         self.max_steps = 100
         self.step_count = 0
 
-        # For camera-based rendering
+        
         self.cam_target_pos = [0.95, -0.2, 0.2]
         self.cam_distance = 2.05
         self.cam_yaw = -50
@@ -73,10 +74,10 @@ class MultiChestKukaEnv(gym.Env):
         self.cam_width = 480
         self.cam_height = 360
 
-        # Track consecutive steps within 0.07
+        
         self.consecutive_close_steps = 0
 
-        # We'll store the target chest's previous position to detect movement
+        
         self.prev_chest_pos = None
 
         self.reset()
@@ -136,19 +137,19 @@ class MultiChestKukaEnv(gym.Env):
             y = np.random.uniform(table_y_min, table_y_max)
             p.resetBasePositionAndOrientation(cid, [x, y, table_top_z + 0.01], [0, 0, 0, 1])
 
-        # Choose a random target chest
+        
         self.target_idx = np.random.randint(0, self.num_chests)
         target_chest_id = self.chest_ids[self.target_idx]
         p.changeVisualShape(target_chest_id, -1, rgbaColor=[1, 0, 0, 1])
 
-        # Step the simulation a few times
+        
         for _ in range(10):
             p.stepSimulation()
 
         self.step_count = 0
-        self.consecutive_close_steps = 0  # reset close-step counter
+        self.consecutive_close_steps = 0  
 
-        # Store the target chest's initial position so we can track movement
+        
         chest_pos, _ = p.getBasePositionAndOrientation(target_chest_id)
         self.prev_chest_pos = np.array(chest_pos, dtype=np.float32)
 
@@ -157,16 +158,16 @@ class MultiChestKukaEnv(gym.Env):
         return obs, info
 
     def _get_obs(self):
-        # End-effector position
+        
         ee_state = p.getLinkState(self.kuka_id, self.end_effector_index)
         ee_pos = np.array(ee_state[0], dtype=np.float32)
 
-        # Target chest's position
+        
         target_chest_id = self.chest_ids[self.target_idx]
         chest_pos, _ = p.getBasePositionAndOrientation(target_chest_id)
         chest_pos = np.array(chest_pos, dtype=np.float32)
 
-        # Command ID
+        
         cmd_id = float(self.target_idx)
 
         obs = np.concatenate([ee_pos, chest_pos, [cmd_id]]).astype(np.float32)
@@ -175,14 +176,14 @@ class MultiChestKukaEnv(gym.Env):
     def step(self, action):
         self.step_count += 1
 
-        # Current end-effector position
+        
         ee_state = p.getLinkState(self.kuka_id, self.end_effector_index)
         ee_pos = np.array(ee_state[0])
 
-        # Desired new EE position
+        
         new_ee_pos = ee_pos + action
 
-        # IK to move the end-effector
+        
         ee_orn = p.getQuaternionFromEuler([0, -np.pi, 0])
         joint_poses = p.calculateInverseKinematics(
             self.kuka_id, self.end_effector_index, new_ee_pos, ee_orn
@@ -202,31 +203,31 @@ class MultiChestKukaEnv(gym.Env):
         ee_pos = obs[:3]
         chest_pos = obs[3:6]
 
-        # Distance to target
+        
         dist = np.linalg.norm(ee_pos - chest_pos)
 
-        # ----------------
-        # REWARD LOGIC
-        # ----------------
-        # Base negative reward = -distance
+        
+        
+        
+        
         reward = -dist
 
-        # Penalize movement of the target chest
+        
         chest_move_dist = np.linalg.norm(chest_pos - self.prev_chest_pos)
-        if chest_move_dist > 1e-6:  # if it moved at all
-            # E.g., penalize proportionally
+        if chest_move_dist > 1e-6:  
+            
             reward -= chest_move_dist * 10
 
-        # Update previous chest position
+        
         self.prev_chest_pos = chest_pos.copy()
 
-        # ----------------
-        # TERMINATION LOGIC
-        # ----------------
+        
+        
+        
         terminated = False
         truncated = False
 
-        # If we stayed within 0.07 for 5 consecutive steps => success
+        
         if dist < 0.06:
             self.consecutive_close_steps += 1
         else:
@@ -234,15 +235,15 @@ class MultiChestKukaEnv(gym.Env):
 
         if self.consecutive_close_steps >= 5:
             terminated = True
-            # Add a "success" bonus
+            
             reward += 20
             print(f"Success! End-effector close for 5+ consecutive steps. Distance={dist:.3f}")
 
-        # If we reached max steps, we truncate
+        
         if self.step_count >= self.max_steps:
             truncated = True
 
-        info = {"is_success": terminated}  # or track success differently if you prefer
+        info = {"is_success": terminated}  
 
         return obs, reward, terminated, truncated, info
 
@@ -277,10 +278,10 @@ class MultiChestKukaEnv(gym.Env):
         p.disconnect()
 
 
-# ------------------------------------------------------------------------------
-# Below is the rest of your code (callbacks, env-creation, main, etc.) unchanged
-# but you can simply replace the MultiChestKukaEnv definition with the one above.
-# ------------------------------------------------------------------------------
+
+
+
+
 class KukaEvalCallback(BaseCallback):
     """
     A callback that runs evaluation episodes every `eval_freq` steps
@@ -360,9 +361,6 @@ class KukaEvalCallback(BaseCallback):
 
         return True
 
-
-from stable_baselines3.common.vec_env import SubprocVecEnv
-from stable_baselines3.common.monitor import Monitor
 
 def make_env_fn(rank, num_chests=3, use_gui=False):
     """
