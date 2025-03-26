@@ -2,13 +2,12 @@ name: robo
 channels:
   - conda-forge
   - defaults
-  - https://repo.anaconda.com/pkgs/main
-  - https://repo.anaconda.com/pkgs/r
 dependencies:
   - _libgcc_mutex=0.1=main
   - _openmp_mutex=5.1=1_gnu
   - asttokens=3.0.0=pyhd8ed1ab_1
   - bzip2=1.0.8=h5eee18b_6
+  - c-ares=1.34.4=hb9d3cd8_0
   - ca-certificates=2025.2.25=h06a4308_0
   - comm=0.2.2=pyhd8ed1ab_1
   - debugpy=1.8.12=py311hfdbb021_0
@@ -17,20 +16,33 @@ dependencies:
   - executing=2.1.0=pyhd8ed1ab_1
   - importlib-metadata=8.6.1=pyha770c72_0
   - ipykernel=6.29.5=pyh3099207_0
+  - ipython=9.0.2=pyhfb0248b_0
+  - ipython_pygments_lexers=1.1.1=pyhd8ed1ab_0
   - jedi=0.19.2=pyhd8ed1ab_1
   - jupyter_client=8.6.3=pyhd8ed1ab_1
   - jupyter_core=5.7.2=pyh31011fe_1
   - krb5=1.21.3=h143b758_0
   - ld_impl_linux-64=2.40=h12ee557_0
+  - libabseil=20250127.0=cxx17_hbbce691_0
+  - libblas=3.9.0=31_h59b9bed_openblas
+  - libcblas=3.9.0=31_he106b2a_openblas
   - libedit=3.1.20230828=h5eee18b_0
   - libffi=3.4.4=h6a678d5_1
   - libgcc=14.2.0=h767d61c_2
   - libgcc-ng=14.2.0=h69a702a_2
+  - libgfortran=14.2.0=h69a702a_2
+  - libgfortran5=14.2.0=hf1ad2bd_2
   - libgomp=14.2.0=h767d61c_2
+  - libgrpc=1.71.0=h2d74bed_0
+  - liblapack=3.9.0=31_h7ac8fdf_openblas
+  - libopenblas=0.3.29=pthreads_h94d23a6_0
+  - libprotobuf=5.29.3=hc99497a_0
+  - libre2-11=2024.07.02=hba17884_3
   - libsodium=1.0.20=h4ab18f5_0
   - libstdcxx=14.2.0=h8f9b012_2
   - libstdcxx-ng=11.2.0=h1234567_1
   - libuuid=1.41.5=h5eee18b_0
+  - markupsafe=3.0.2=py311h2dc5d0c_1
   - matplotlib-inline=0.1.7=pyhd8ed1ab_1
   - ncurses=6.4=h6a678d5_0
   - nest-asyncio=1.6.0=pyhd8ed1ab_1
@@ -50,21 +62,25 @@ dependencies:
   - python-dateutil=2.9.0.post0=pyhff2d567_1
   - python_abi=3.11=2_cp311
   - pyzmq=26.2.1=py311h7deb3e3_0
+  - re2=2024.07.02=h9925aae_3
   - readline=8.2=h5eee18b_0
   - six=1.17.0=pyhd8ed1ab_0
   - sqlite=3.45.3=h5eee18b_0
   - stack_data=0.6.3=pyhd8ed1ab_1
+  - tensorboard=2.19.0=pyhd8ed1ab_0
   - tk=8.6.14=h39e8969_0
   - tornado=6.4.2=py311h9ecbd09_0
   - traitlets=5.14.3=pyhd8ed1ab_1
   - typing_extensions=4.12.2=pyha770c72_1
   - wcwidth=0.2.13=pyhd8ed1ab_1
+  - werkzeug=3.1.3=pyhd8ed1ab_1
   - wheel=0.45.1=py311h06a4308_0
   - xz=5.6.4=h5eee18b_1
   - zeromq=4.3.5=h3b0a872_7
   - zipp=3.21.0=pyhd8ed1ab_1
   - zlib=1.2.13=h5eee18b_1
   - pip:
+      - absl-py==1.4.0
       - cloudpickle==3.1.1
       - contourpy==1.3.1
       - cycler==0.12.1
@@ -72,13 +88,15 @@ dependencies:
       - filelock==3.17.0
       - fonttools==4.56.0
       - fsspec==2025.2.0
+      - grpcio==1.54.0
       - gym==0.26.2
       - gym-notices==0.0.8
       - gymnasium==1.0.0
+      - imageio==2.37.0
       - imageio-ffmpeg==0.6.0
       - jinja2==3.1.5
       - kiwisolver==1.4.8
-      - markupsafe==3.0.2
+      - markdown==3.7
       - matplotlib==3.10.1
       - mpmath==1.3.0
       - narwhals==1.29.0
@@ -103,6 +121,7 @@ dependencies:
       - pandas==2.2.3
       - pillow==11.1.0
       - plotly==6.0.0
+      - protobuf==6.30.1
       - pybullet==3.2.7
       - pyparsing==3.2.1
       - pytz==2025.1
@@ -111,7 +130,8 @@ dependencies:
       - shimmy==2.0.0
       - stable-baselines3==2.5.0
       - sympy==1.13.1
+      - tensorboard-data-server==0.7.2
       - torch==2.6.0
       - triton==3.2.0
       - tzdata==2025.1
-prefix: /home/enzolouv/miniconda3/envs/robo
+prefix: /home/deemel/miniconda3/envs/robo
