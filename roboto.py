@@ -447,4 +447,4 @@ def main(algo="PPO", reward_type="advanced"):
 if __name__ == "__main__":
     algo = 'SAC'
     reward_type = 'basic'
-    main()
+    main(algo, reward_type)
