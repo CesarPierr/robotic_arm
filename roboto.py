@@ -8,7 +8,7 @@ import imageio
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import SubprocVecEnv
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, SAC
 
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.monitor import Monitor
@@ -26,9 +26,9 @@ class MultiChestKukaEnv(gym.Env):
 
     metadata = {"render_modes": ["rgb_array"], "render_fps": 30}
 
-    def __init__(self, num_chests=3, use_gui=False):
+    def __init__(self, reward_type='advanced', num_chests=3, use_gui=False):
         super().__init__()
-
+        self.reward_type = reward_type
         self.num_chests = num_chests
         self.use_gui = use_gui
 
@@ -209,43 +209,60 @@ class MultiChestKukaEnv(gym.Env):
         
         
         
-        
-        reward = -dist
+        if self.reward_type == 'basic':
+            reward = -dist
 
+            step_penalty = -0.1*0
+            reward += step_penalty
+            success = bool(dist < 0.06)
+            terminated = success 
+    
+            truncated = self.step_count >= self.max_steps  
+            if success:
+                reward += 10
+                print(f"Success! Distance: {dist:.3f}")
+            info = {
+                "is_success": success
+            }
+            return obs, reward, terminated, truncated, info
         
-        chest_move_dist = np.linalg.norm(chest_pos - self.prev_chest_pos)
-        if chest_move_dist > 1e-6:  
+        elif self.reward_type == 'advanced':
+            reward = -dist
+
             
-            reward -= chest_move_dist * 10
+            chest_move_dist = np.linalg.norm(chest_pos - self.prev_chest_pos)
+            if chest_move_dist > 1e-6:  
+                
+                reward -= chest_move_dist * 10
 
-        
-        self.prev_chest_pos = chest_pos.copy()
-
-        
-        
-        
-        terminated = False
-        truncated = False
-
-        
-        if dist < 0.06:
-            self.consecutive_close_steps += 1
-        else:
-            self.consecutive_close_steps = 0
-
-        if self.consecutive_close_steps >= 5:
-            terminated = True
             
-            reward += 20
-            print(f"Success! End-effector close for 5+ consecutive steps. Distance={dist:.3f}")
+            self.prev_chest_pos = chest_pos.copy()
 
-        
-        if self.step_count >= self.max_steps:
-            truncated = True
+            
+            
+            
+            terminated = False
+            truncated = False
 
-        info = {"is_success": terminated}  
+            
+            if dist < 0.06:
+                self.consecutive_close_steps += 1
+            else:
+                self.consecutive_close_steps = 0
 
-        return obs, reward, terminated, truncated, info
+            if self.consecutive_close_steps >= 5:
+                terminated = True
+                
+                reward += 20
+                print(f"Success! End-effector close for 5+ consecutive steps. Distance={dist:.3f}")
+
+            
+            if self.step_count >= self.max_steps:
+                truncated = True
+
+            info = {"is_success": terminated}  
+
+            return obs, reward, terminated, truncated, info
 
     def render(self, mode="rgb_array"):
         if mode == "rgb_array":
@@ -362,29 +379,29 @@ class KukaEvalCallback(BaseCallback):
         return True
 
 
-def make_env_fn(rank, num_chests=3, use_gui=False):
+def make_env_fn(rank, reward_type='advanced', num_chests=3, use_gui=False):
     """
     Factory to create a single environment instance, wrapped with a Monitor.
     `rank` is just an ID for logging or debugging.
     """
     def _init():
-        env = MultiChestKukaEnv(num_chests=num_chests, use_gui=use_gui)
+        env = MultiChestKukaEnv(reward_type=reward_type, num_chests=num_chests, use_gui=use_gui)
         env = Monitor(env)
         return env
     return _init
 
-def create_parallel_envs(n_envs=4, num_chests=3, use_gui=False):
+def create_parallel_envs(n_envs=4, reward_type='advanced', num_chests=3, use_gui=False):
     """
     Creates a SubprocVecEnv with n_envs parallel MultiChestKukaEnv environments.
     """
-    env_fns = [make_env_fn(i, num_chests, use_gui) for i in range(n_envs)]
+    env_fns = [make_env_fn(i, reward_type,num_chests, use_gui) for i in range(n_envs)]
     return SubprocVecEnv(env_fns)
 
 
-def main():
+def main(algo="PPO", reward_type="advanced"):
     n_envs = 16
     num_chests = 3
-    train_env = create_parallel_envs(n_envs=n_envs, num_chests=num_chests, use_gui=False)
+    train_env = create_parallel_envs(n_envs=n_envs, reward_type=reward_type,num_chests=num_chests, use_gui=False)
 
     eval_env = MultiChestKukaEnv(num_chests=num_chests, use_gui=False)
     eval_callback = KukaEvalCallback(
@@ -393,15 +410,30 @@ def main():
         eval_freq=20000,
         verbose=1
     )
-
-    model = PPO(
-        "MlpPolicy",
-        train_env,
-        verbose=1,
-        tensorboard_log="./runs",
-        n_steps=int(2048/n_envs),
-        batch_size=64,
-    )
+    if algo == "PPO":
+        model = PPO(
+            "MlpPolicy",
+            train_env,
+            verbose=1,
+            tensorboard_log="./runs",
+            n_steps=int(2048/n_envs),
+            batch_size=64,
+        )
+    elif algo == "SAC":
+            model = SAC(
+            "MlpPolicy",
+            train_env,
+            verbose=1,
+            tensorboard_log='./runs',
+            learning_rate=3e-4,
+            buffer_size=100000,
+            learning_starts=10000,
+            batch_size=256,
+            tau=0.005,
+            gamma=0.99,
+            train_freq=1,
+            gradient_steps=1,
+            target_update_interval=1)
 
     model.learn(
         total_timesteps=10000000,
@@ -413,4 +445,6 @@ def main():
 
 
 if __name__ == "__main__":
+    algo = 'SAC'
+    reward_type = 'basic'
     main()
