@@ -1,1 +1,6 @@
-runs/
+# runs/
+__pychache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw   
