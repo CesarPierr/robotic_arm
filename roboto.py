@@ -1,5 +1,5 @@
-import gymnasium as gym
-from gymnasium import spaces
+import gym
+from gym import spaces
 import numpy as np
 import pybullet as p
 import pybullet_data
@@ -12,6 +12,53 @@ from stable_baselines3 import PPO, SAC
 
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.monitor import Monitor
+
+import time
+
+
+# Create a custom wrapper that's compatible with the Gym API
+class CustomMonitor(gym.Wrapper):
+    """
+    A custom monitor that works with Gym environments and
+    is compatible with Stable Baselines 3's expectations.
+    """
+
+    def __init__(self, env):
+        super().__init__(env)
+        self.t_start = time.time()
+        self.rewards = []
+        self.episode_lengths = []
+        self.episode_times = []
+        self.total_steps = 0
+        self.episode_rewards = 0
+        self.episode_length = 0
+
+    def reset(self, **kwargs):
+        self.episode_rewards = 0
+        self.episode_length = 0
+        return self.env.reset(**kwargs)
+
+    def step(self, action):
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        self.episode_rewards += reward
+        self.episode_length += 1
+        self.total_steps += 1
+
+        if terminated or truncated:
+            self.rewards.append(self.episode_rewards)
+            self.episode_lengths.append(self.episode_length)
+            self.episode_times.append(time.time() - self.t_start)
+
+            info["episode"] = {
+                "r": self.episode_rewards,
+                "l": self.episode_length,
+                "t": self.episode_times[-1],
+            }
+
+            self.episode_rewards = 0
+            self.episode_length = 0
+
+        return observation, reward, terminated, truncated, info
 
 
 class MultiChestKukaEnv(gym.Env):
@@ -26,7 +73,7 @@ class MultiChestKukaEnv(gym.Env):
 
     metadata = {"render_modes": ["rgb_array"], "render_fps": 30}
 
-    def __init__(self, reward_type='advanced', num_chests=3, use_gui=False):
+    def __init__(self, reward_type="advanced", num_chests=3, use_gui=False):
         super().__init__()
         self.reward_type = reward_type
         self.num_chests = num_chests
@@ -55,18 +102,15 @@ class MultiChestKukaEnv(gym.Env):
 
         self.num_joints = p.getNumJoints(self.kuka_id)
         self.end_effector_index = 6
-        
-        
+
         self.action_space = spaces.Box(low=-0.3, high=0.3, shape=(3,), dtype=np.float32)
 
-        
-        high = np.array([3]*7, dtype=np.float32)
+        high = np.array([3] * 7, dtype=np.float32)
         self.observation_space = spaces.Box(-high, high, dtype=np.float32)
 
         self.max_steps = 100
         self.step_count = 0
 
-        
         self.cam_target_pos = [0.95, -0.2, 0.2]
         self.cam_distance = 2.05
         self.cam_yaw = -50
@@ -74,10 +118,8 @@ class MultiChestKukaEnv(gym.Env):
         self.cam_width = 480
         self.cam_height = 360
 
-        
         self.consecutive_close_steps = 0
 
-        
         self.prev_chest_pos = None
 
         self.reset()
@@ -104,22 +146,22 @@ class MultiChestKukaEnv(gym.Env):
         self.table_id = p.loadURDF(
             "table/table.urdf",
             basePosition=[1.0, -0.2, 0.0],
-            baseOrientation=[0, 0, 0.7071, 0.7071]
+            baseOrientation=[0, 0, 0.7071, 0.7071],
         )
 
         self.kuka_id = p.loadURDF(
-            "kuka_iiwa/model_vr_limits.urdf",
-            1.4, -0.2, 0.6,
-            0, 0, 0, 1
+            "kuka_iiwa/model_vr_limits.urdf", 1.4, -0.2, 0.6, 0, 0, 0, 1
         )
         self.num_joints = p.getNumJoints(self.kuka_id)
         init_joint_positions = [0, 0, 0, 1.5708, 0, -1.0367, 0]
         for j in range(self.num_joints):
             p.resetJointState(self.kuka_id, j, init_joint_positions[j])
             p.setJointMotorControl2(
-                self.kuka_id, j, p.POSITION_CONTROL,
+                self.kuka_id,
+                j,
+                p.POSITION_CONTROL,
                 targetPosition=init_joint_positions[j],
-                force=500
+                force=500,
             )
 
         table_top_z = 0.65
@@ -135,21 +177,20 @@ class MultiChestKukaEnv(gym.Env):
 
             x = np.random.uniform(table_x_min, table_x_max)
             y = np.random.uniform(table_y_min, table_y_max)
-            p.resetBasePositionAndOrientation(cid, [x, y, table_top_z + 0.01], [0, 0, 0, 1])
+            p.resetBasePositionAndOrientation(
+                cid, [x, y, table_top_z + 0.01], [0, 0, 0, 1]
+            )
 
-        
         self.target_idx = np.random.randint(0, self.num_chests)
         target_chest_id = self.chest_ids[self.target_idx]
         p.changeVisualShape(target_chest_id, -1, rgbaColor=[1, 0, 0, 1])
 
-        
         for _ in range(10):
             p.stepSimulation()
 
         self.step_count = 0
-        self.consecutive_close_steps = 0  
+        self.consecutive_close_steps = 0
 
-        
         chest_pos, _ = p.getBasePositionAndOrientation(target_chest_id)
         self.prev_chest_pos = np.array(chest_pos, dtype=np.float32)
 
@@ -158,16 +199,14 @@ class MultiChestKukaEnv(gym.Env):
         return obs, info
 
     def _get_obs(self):
-        
+
         ee_state = p.getLinkState(self.kuka_id, self.end_effector_index)
         ee_pos = np.array(ee_state[0], dtype=np.float32)
 
-        
         target_chest_id = self.chest_ids[self.target_idx]
         chest_pos, _ = p.getBasePositionAndOrientation(target_chest_id)
         chest_pos = np.array(chest_pos, dtype=np.float32)
 
-        
         cmd_id = float(self.target_idx)
 
         obs = np.concatenate([ee_pos, chest_pos, [cmd_id]]).astype(np.float32)
@@ -176,14 +215,11 @@ class MultiChestKukaEnv(gym.Env):
     def step(self, action):
         self.step_count += 1
 
-        
         ee_state = p.getLinkState(self.kuka_id, self.end_effector_index)
         ee_pos = np.array(ee_state[0])
 
-        
         new_ee_pos = ee_pos + action
 
-        
         ee_orn = p.getQuaternionFromEuler([0, -np.pi, 0])
         joint_poses = p.calculateInverseKinematics(
             self.kuka_id, self.end_effector_index, new_ee_pos, ee_orn
@@ -194,7 +230,7 @@ class MultiChestKukaEnv(gym.Env):
                 j,
                 p.POSITION_CONTROL,
                 targetPosition=joint_poses[j],
-                force=500
+                force=500,
             )
 
         p.stepSimulation()
@@ -203,48 +239,36 @@ class MultiChestKukaEnv(gym.Env):
         ee_pos = obs[:3]
         chest_pos = obs[3:6]
 
-        
         dist = np.linalg.norm(ee_pos - chest_pos)
 
-        
-        
-        
-        if self.reward_type == 'basic':
+        if self.reward_type == "basic":
             reward = -dist
 
-            step_penalty = -0.1*0
+            step_penalty = -0.1 * 0
             reward += step_penalty
             success = bool(dist < 0.06)
-            terminated = success 
-    
-            truncated = self.step_count >= self.max_steps  
+            terminated = success
+
+            truncated = self.step_count >= self.max_steps
             if success:
                 reward += 10
                 print(f"Success! Distance: {dist:.3f}")
-            info = {
-                "is_success": success
-            }
+            info = {"is_success": success}
             return obs, reward, terminated, truncated, info
-        
-        elif self.reward_type == 'advanced':
+
+        elif self.reward_type == "advanced":
             reward = -dist
 
-            
             chest_move_dist = np.linalg.norm(chest_pos - self.prev_chest_pos)
-            if chest_move_dist > 1e-6:  
-                
+            if chest_move_dist > 1e-6:
+
                 reward -= chest_move_dist * 10
 
-            
             self.prev_chest_pos = chest_pos.copy()
 
-            
-            
-            
             terminated = False
             truncated = False
 
-            
             if dist < 0.06:
                 self.consecutive_close_steps += 1
             else:
@@ -252,15 +276,16 @@ class MultiChestKukaEnv(gym.Env):
 
             if self.consecutive_close_steps >= 5:
                 terminated = True
-                
-                reward += 20
-                print(f"Success! End-effector close for 5+ consecutive steps. Distance={dist:.3f}")
 
-            
+                reward += 20
+                print(
+                    f"Success! End-effector close for 5+ consecutive steps. Distance={dist:.3f}"
+                )
+
             if self.step_count >= self.max_steps:
                 truncated = True
 
-            info = {"is_success": terminated}  
+            info = {"is_success": terminated}
 
             return obs, reward, terminated, truncated, info
 
@@ -272,31 +297,29 @@ class MultiChestKukaEnv(gym.Env):
                 yaw=self.cam_yaw,
                 pitch=self.cam_pitch,
                 roll=0,
-                upAxisIndex=2
+                upAxisIndex=2,
             )
             proj_matrix = p.computeProjectionMatrixFOV(
                 fov=60,
-                aspect=float(self.cam_width)/self.cam_height,
+                aspect=float(self.cam_width) / self.cam_height,
                 nearVal=0.1,
-                farVal=100.0
+                farVal=100.0,
             )
             img = p.getCameraImage(
                 width=self.cam_width,
                 height=self.cam_height,
                 viewMatrix=view_matrix,
-                projectionMatrix=proj_matrix
+                projectionMatrix=proj_matrix,
             )
-            rgb_array = np.reshape(img[2], (self.cam_height, self.cam_width, 4))[:, :, :3]
+            rgb_array = np.reshape(img[2], (self.cam_height, self.cam_width, 4))[
+                :, :, :3
+            ]
             return rgb_array
         else:
             return None
 
     def close(self):
         p.disconnect()
-
-
-
-
 
 
 class KukaEvalCallback(BaseCallback):
@@ -306,6 +329,7 @@ class KukaEvalCallback(BaseCallback):
     Also logs mean reward and success rate to TensorBoard.
     Uses the new Gymnasium 5-item step signature.
     """
+
     def __init__(self, eval_env, n_eval_episodes=5, eval_freq=20000, verbose=1):
         super().__init__(verbose)
         self.eval_env = eval_env
@@ -333,7 +357,9 @@ class KukaEvalCallback(BaseCallback):
 
                 while not (terminated or truncated):
                     action, _ = self.model.predict(obs, deterministic=True)
-                    obs, reward, terminated, truncated, info = self.eval_env.step(action)
+                    obs, reward, terminated, truncated, info = self.eval_env.step(
+                        action
+                    )
                     ep_reward += reward
 
                     frame = self.eval_env.render(mode="rgb_array")
@@ -350,8 +376,10 @@ class KukaEvalCallback(BaseCallback):
             success_rate = np.mean(episode_successes)
 
             if self.verbose > 0:
-                print(f"\n[EvalCallback] Step={self.n_calls} | "
-                      f"MeanReward={mean_reward:.3f} | SuccessRate={success_rate*100:.1f}%")
+                print(
+                    f"\n[EvalCallback] Step={self.n_calls} | "
+                    f"MeanReward={mean_reward:.3f} | SuccessRate={success_rate*100:.1f}%"
+                )
 
             self.logger.record("eval/mean_reward", mean_reward, self.n_calls)
             self.logger.record("eval/success_rate", success_rate, self.n_calls)
@@ -368,47 +396,55 @@ class KukaEvalCallback(BaseCallback):
                 self.best_mean_reward = mean_reward
                 self.model.save("best_model_by_reward")
                 if self.verbose > 0:
-                    print("[EvalCallback] New best mean reward => Saved model as best_model_by_reward")
+                    print(
+                        "[EvalCallback] New best mean reward => Saved model as best_model_by_reward"
+                    )
 
             if success_rate > self.best_success_rate:
                 self.best_success_rate = success_rate
                 self.model.save("best_model_by_success")
                 if self.verbose > 0:
-                    print("[EvalCallback] New best success rate => Saved model as best_model_by_success")
+                    print(
+                        "[EvalCallback] New best success rate => Saved model as best_model_by_success"
+                    )
 
         return True
 
 
-def make_env_fn(rank, reward_type='advanced', num_chests=3, use_gui=False):
+def make_env_fn(rank, reward_type="advanced", num_chests=3, use_gui=False):
     """
-    Factory to create a single environment instance, wrapped with a Monitor.
+    Factory to create a single environment instance, wrapped with a CustomMonitor.
     `rank` is just an ID for logging or debugging.
     """
+
     def _init():
-        env = MultiChestKukaEnv(reward_type=reward_type, num_chests=num_chests, use_gui=use_gui)
-        env = Monitor(env)
+        env = MultiChestKukaEnv(
+            reward_type=reward_type, num_chests=num_chests, use_gui=use_gui
+        )
+        env = CustomMonitor(env)
         return env
+
     return _init
 
-def create_parallel_envs(n_envs=4, reward_type='advanced', num_chests=3, use_gui=False):
+
+def create_parallel_envs(n_envs=4, reward_type="advanced", num_chests=3, use_gui=False):
     """
     Creates a SubprocVecEnv with n_envs parallel MultiChestKukaEnv environments.
     """
-    env_fns = [make_env_fn(i, reward_type,num_chests, use_gui) for i in range(n_envs)]
+    env_fns = [make_env_fn(i, reward_type, num_chests, use_gui) for i in range(n_envs)]
     return SubprocVecEnv(env_fns)
 
 
 def main(algo="PPO", reward_type="advanced"):
-    n_envs = 16
+    n_envs = 13
     num_chests = 3
-    train_env = create_parallel_envs(n_envs=n_envs, reward_type=reward_type,num_chests=num_chests, use_gui=False)
+    train_env = create_parallel_envs(
+        n_envs=n_envs, reward_type=reward_type, num_chests=num_chests, use_gui=False
+    )
 
     eval_env = MultiChestKukaEnv(num_chests=num_chests, use_gui=False)
     eval_callback = KukaEvalCallback(
-        eval_env=eval_env,
-        n_eval_episodes=5,
-        eval_freq=20000,
-        verbose=1
+        eval_env=eval_env, n_eval_episodes=5, eval_freq=20000, verbose=1
     )
     if algo == "PPO":
         model = PPO(
@@ -416,15 +452,15 @@ def main(algo="PPO", reward_type="advanced"):
             train_env,
             verbose=1,
             tensorboard_log="./runs",
-            n_steps=int(2048/n_envs),
+            n_steps=int(2048 / n_envs),
             batch_size=64,
         )
     elif algo == "SAC":
-            model = SAC(
+        model = SAC(
             "MlpPolicy",
             train_env,
             verbose=1,
-            tensorboard_log='./runs',
+            tensorboard_log="./runs",
             learning_rate=3e-4,
             buffer_size=100000,
             learning_starts=10000,
@@ -433,18 +469,16 @@ def main(algo="PPO", reward_type="advanced"):
             gamma=0.99,
             train_freq=1,
             gradient_steps=1,
-            target_update_interval=1)
+            target_update_interval=1,
+        )
 
-    model.learn(
-        total_timesteps=10000000,
-        callback=eval_callback
-    )
+    model.learn(total_timesteps=10000000, callback=eval_callback)
 
     train_env.close()
     eval_env.close()
 
 
 if __name__ == "__main__":
-    algo = 'SAC'
-    reward_type = 'basic'
+    algo = "PPO"
+    reward_type = "basic"
     main(algo, reward_type)
