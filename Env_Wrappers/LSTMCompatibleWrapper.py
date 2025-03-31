@@ -19,9 +19,10 @@ class LSTMCompatibleWrapper(gym.Wrapper):
         super().__init__(env)
         self.types = types
         self.attributes = attributes
-
-        high = np.array([len(types) - 1, 1e6, 1e6], dtype=np.float32)
-        low  = np.array([0, 0, 0], dtype=np.float32)
+        self.obs_dim = len(types) + 2  # symbol_idx + start_time + end_time
+        self.max_time = 100000
+        high = np.array([1.0] * len(types) + [1.0, 1.0], dtype=np.float32)
+        low  = np.array([0.0] * len(types) + [0.0, 0.0], dtype=np.float32)
         self.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
 
     def reset(self):
@@ -35,10 +36,15 @@ class LSTMCompatibleWrapper(gym.Wrapper):
         return self._get_observation(evt_info), reward, done, info
 
     def _get_observation(self, evt_info):
-        symbol_idx = float(self.types.index(evt_info["symbol"]))
-        start_t    = float(evt_info["start_time"])
-        end_t      = float(evt_info["end_time"])
-        return np.array([symbol_idx, start_t, end_t], dtype=np.float32)
+        symbol_idx = self.types.index(evt_info["symbol"])
+        one_hot_symbol = np.zeros(len(self.types), dtype=np.float32)
+        one_hot_symbol[symbol_idx] = 1.0
+
+        start_t = float(evt_info["start_time"])/self.max_time  
+        end_t = float(evt_info["end_time"])/self.max_time 
+
+        return np.concatenate([one_hot_symbol, [start_t, end_t]]).astype(np.float32)
+
 
 
 # ---------------------------------------------------------------------
