@@ -1,6 +1,7 @@
 
 # Projet Robot KUKA pour la Manipulation de Boîtes
 
+ALLEMAND Fabien, CÉSAR Pierre, LOUVARD Enzo, PETITCOLIN Corentin, RIGAUD Charles
 ## Description
 Ce projet propose un environnement de simulation développé avec Gym, PyBullet et Stable Baselines3 pour entraîner un robot KUKA à atteindre une boîte cible parmi plusieurs. L'agent est récompensé en fonction de la proximité de son effecteur par rapport à la boîte choisie et pénalisé si la boîte se déplace accidentellement.
 
@@ -32,7 +33,7 @@ Ce projet étend ses fonctionnalités en intégrant l'environnement "Open the Ch
 
 ## Setup
 1. **Création de l'environnement**  
-   Utilisez le fichier `requirements.txt` pour installer les dépendances dans un environnement virtuel Python :
+   Utilisez le fichier `requirements.txt` pour installer les dépendances dans un environnement virtuel Python:
    ```bash
    python -m venv venv
    source venv/bin/activate  # Sur Windows: venv\Scripts\activate
@@ -48,7 +49,8 @@ Ce projet étend ses fonctionnalités en intégrant l'environnement "Open the Ch
    - imageio
 
 ## Structure du Projet
-- `requirements.txt` : Fichier de configuration pour créer l'environnement Conda.
+- `requirements.txt` : Fichier de configuration pour créer l'environnement Conda sur windows.
+- `requirements_lin.txt` : Fichier de configuration pour créer l'environnement Conda sur Linux.
 - `notebook.ipynb` : Notebook Jupyter pour l'évaluation et la visualisation du modèle.
 - `README.md` : Ce fichier.
 - `roboto.py`: The physical env wrapper
