@@ -41,35 +41,17 @@ Ce projet étend ses fonctionnalités en intégrant l'environnement "Open the Ch
 
 2. **Installation manuelle des dépendances (optionnel)**  
    Assurez-vous d'avoir installé :
-   - Python 3.7+
+   - Python 3.9+
    - gym
    - pybullet
    - stable-baselines3
    - imageio
 
-## How to Use
-1. **Entraînement du modèle**  
-   Lancez l'entraînement du robot en exécutant le script principal :
-   ```bash
-   python main.py
-   ```
-   Ce script crée plusieurs environnements parallèles et entraîne un modèle PPO pour faire apprendre au robot comment atteindre la boîte cible.
-
-2. **Évaluation et Visualisation**  
-   Un notebook Jupyter est fourni pour tester le modèle entraîné. Il permet de :
-   - Charger un modèle sauvegardé.
-   - Créer un environnement avec des boîtes.
-   - Choisir une boîte cible via un paramètre.
-   - Exécuter la politique du robot et générer un GIF animé montrant l'évolution.
-   
-   Pour utiliser le notebook, lancez :
-   ```bash
-   jupyter notebook
-   ```
-   Puis ouvrez le notebook correspondant et exécutez les cellules pour visualiser le comportement du robot.
-
 ## Structure du Projet
-- `main.py` : Script principal pour l'entraînement du modèle.
-- `environment.yaml` : Fichier de configuration pour créer l'environnement Conda.
+- `requirements.txt` : Fichier de configuration pour créer l'environnement Conda.
 - `notebook.ipynb` : Notebook Jupyter pour l'évaluation et la visualisation du modèle.
 - `README.md` : Ce fichier.
+- `roboto.py`: The physical env wrapper
+- `Agents\QLearning_agent.py` : The Q-Learning agent used for difficulty 0
+- `Env_Wrappers\TimeWindowWrapper.py` : The environnement wrapper used for difficulty 1
+- `Env_Wrappers\LSTMCompatibleWrapper.py` : The environnement wrapper used for difficulty 2
