@@ -73,12 +73,14 @@ class MultiChestKukaEnv(gym.Env):
 
     metadata = {"render_modes": ["rgb_array"], "render_fps": 30}
 
-    def __init__(self, reward_type="advanced", num_chests=3, use_gui=False):
+    def __init__(
+        self, reward_type="advanced", num_chests=3, use_gui=False, silent=False
+    ):
         super().__init__()
         self.reward_type = reward_type
         self.num_chests = num_chests
         self.use_gui = use_gui
-
+        self.silent = silent
         if self.use_gui:
             p.connect(p.GUI)
         else:
@@ -252,7 +254,8 @@ class MultiChestKukaEnv(gym.Env):
             truncated = self.step_count >= self.max_steps
             if success:
                 reward += 10
-                print(f"Success! Distance: {dist:.3f}")
+                if not self.silent:
+                    print(f"Success! Distance: {dist:.3f}")
             info = {"is_success": success}
             return obs, reward, terminated, truncated, info
 
@@ -278,9 +281,10 @@ class MultiChestKukaEnv(gym.Env):
                 terminated = True
 
                 reward += 20
-                print(
-                    f"Success! End-effector close for 5+ consecutive steps. Distance={dist:.3f}"
-                )
+                if not self.silent:
+                    print(
+                        f"Success! End-effector close for 5+ consecutive steps. Distance={dist:.3f}"
+                    )
 
             if self.step_count >= self.max_steps:
                 truncated = True
