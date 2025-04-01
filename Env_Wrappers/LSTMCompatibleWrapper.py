@@ -24,15 +24,18 @@ class LSTMCompatibleWrapper(gym.Wrapper):
         high = np.array([1.0] * len(types) + [1.0, 1.0], dtype=np.float32)
         low  = np.array([0.0] * len(types) + [0.0, 0.0], dtype=np.float32)
         self.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
+        self.observed_events = []  # Store observed events
 
     def reset(self):
         obs = self.env.reset()
         evt_info = event_from_obs_gym(obs, self.types, self.attributes)
+        self.observed_events = [evt_info]
         return self._get_observation(evt_info)
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
         evt_info = event_from_obs_gym(obs, self.types, self.attributes)
+        self.observed_events.append(evt_info)
         return self._get_observation(evt_info), reward, done, info
 
     def _get_observation(self, evt_info):

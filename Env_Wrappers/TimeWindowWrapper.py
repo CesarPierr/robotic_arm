@@ -27,12 +27,15 @@ class TimeWindowWrapper(gym.Wrapper):
             high=obs_high.flatten(),
             dtype=np.float32
         )
+        
+        self.observed_events = []  # Store observed events
 
     def reset(self):
         obs = self.env.reset()
         self.events_buffer.clear()
 
         evt_info = event_from_obs_gym(obs, self.types, self.attributes)
+        self.observed_events = [evt_info]  # Store the first event
         self._store_event(evt_info)
 
         return self._get_observation()
@@ -41,6 +44,7 @@ class TimeWindowWrapper(gym.Wrapper):
         obs, reward, done, info = self.env.step(action)
 
         evt_info = event_from_obs_gym(obs, self.types, self.attributes)
+        self.observed_events.append(evt_info)  # Store the event
         self._store_event(evt_info)
 
         return self._get_observation(), reward, done, info
